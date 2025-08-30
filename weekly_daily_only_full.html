@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Weekly — Daily Only (Full)</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Weekly — Daily Only (Full)</title>
 <style>
 :root{
   --bg:#fafafa; --panel:#ffffff; --border:#e5e7eb; --text:#111827; --muted:#6b7280;
@@ -14,15 +14,15 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,-
 header{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--border)}
 .wrap{max-width:1200px;margin:0 auto;padding:12px}
 .title{font-weight:800;font-size:clamp(22px,4vw,34px);background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
-.sub{color:var(--muted)}
+.sub{color:var(--muted); margin-top: 4px;}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
-.btn{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap;}
 .btn:hover{border-color:var(--acc)}
 .btn.warn:hover{border-color:var(--warn)}
 .btn.bad:hover{border-color:var(--bad)}
 input[type="date"],input[type="search"],input[type="number"],input[type="text"]{border:1px solid var(--border);border-radius:10px;padding:9px 10px;background:#fff;color:var(--text)}
-.switch{display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel)}
-.counter{color:var(--muted);margin-left:auto}
+.switch{display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel); font-size: 14px;}
+.counter{color:var(--muted);margin-left:auto;font-size:14px;white-space:nowrap;}
 .banner{display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--bad);background:#fee2e2;color:var(--bad);border-radius:10px}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;padding:14px}
@@ -31,7 +31,7 @@ input[type="date"],input[type="search"],input[type="number"],input[type="text"]{
 .small{color:var(--muted);font-size:12px}
 .pill{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:#f3f4f6;color:var(--muted);font-size:12px}
 
-.uploader{border:2px dashed var(--border);border-radius:12px;padding:10px;background:#f9fafb;cursor:pointer}
+.uploader{border:2px dashed var(--border);border-radius:12px;padding:10px;background:#f9fafb;cursor:pointer;text-align:center;}
 .uploader:hover{border-color:var(--acc)}
 .uploader.drag{border-color:var(--acc2);background:#ede9fe}
 .uploader input{display:none}
@@ -64,16 +64,12 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       <input type="search" id="search" placeholder="Search filenames & notes…">
       <label class="switch"><input type="checkbox" id="optimize" checked> Optimize images</label>
       <button class="btn" id="exportBtn">Export Backup</button>
-      <!-- NEW: Manual Save (silent quick export) -->
-      <button class="btn" id="saveNowBtn">Save</button>
+      <button class="btn" id="saveNowBtn" title="Quickly save a backup without a confirmation prompt.">Save</button>
       <label class="btn" for="importFile">Import Backup</label>
       <input id="importFile" type="file" accept="application/json" style="display:none">
-      <!-- NEW: Dedicated Save as PDF (uses print flow) -->
-      <button class="btn warn" id="savePdfBtn">Save as PDF</button>
-      <!-- Existing print button kept -->
       <button class="btn warn" id="printBtn">Print / PDF</button>
       <button class="btn bad" id="clearAllBtn">Clear All</button>
-      <div class="counter" id="counter" title="Storage usage"></div>
+      <div class="counter" id="counter" title="Calculating storage...">Files: 0, ~0.0 MB</div>
     </div>
     <div class="banner" id="idbBanner">⚠ Storage not available (Private Browsing?)</div>
     <div class="sub">iPad tip: Safari → Share → <b>Add to Home Screen</b> for app-like use.</div>
@@ -105,8 +101,7 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       <textarea class="notes" placeholder="What did you do today?"></textarea>
     </div>
     <label class="uploader">
-      <input class="file" type="file" multiple
-             accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,application/zip">
+      <input class="file" type="file" multiple accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,application/zip,.md,.txt,.csv">
       <div>➕ <b>Add files</b> — drag & drop / paste</div>
     </label>
     <div class="gallery"></div>
@@ -116,7 +111,8 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
 <script>
 (function(){
   // ----- Utilities -----
-  const DEFAULT_START = '2025-08-23';
+  const getTodayISO = () => new Date().toISOString().slice(0, 10);
+  const DEFAULT_START = getTodayISO();
   const $ = (s,el=document)=> el.querySelector(s);
   const fmtMB = b => (b/1024/1024).toFixed(1)+' MB';
   const debounce = (fn,ms=300)=>{let t;return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}}
@@ -130,7 +126,7 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
   function openDB(){
     return new Promise((resolve,reject)=>{
       if(!('indexedDB' in self)) return reject(new Error('NoIndexedDB'));
-      const req = indexedDB.open('weekly-daily-only-v1', 1);
+      const req = indexedDB.open('weekly-daily-only-v2', 1);
       req.onupgradeneeded = e=>{
         const db = e.target.result;
         const files = db.createObjectStore('files',{keyPath:'id'});
@@ -138,7 +134,7 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
         db.createObjectStore('notes',{keyPath:'dayId'});
         db.createObjectStore('hours',{keyPath:'dayId'});
         db.createObjectStore('tags',{keyPath:'dayId'});
-        db.createObjectStore('meta',{keyPath:'key'}); // start date, etc.
+        db.createObjectStore('meta',{keyPath:'key'});
       };
       req.onsuccess = async ()=>{
         db=req.result;
@@ -151,16 +147,13 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     });
   }
   const store = (name,mode='readonly')=> db.transaction(name,mode).objectStore(name);
-  // files
   const putFile = rec => new Promise((res,rej)=>{ const r=store('files','readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
   const getFiles = dayId => new Promise((res,rej)=>{ const r=store('files').index('dayId').getAll(dayId); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); });
   const getAllFiles = () => new Promise((res,rej)=>{ const r=store('files').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); });
   const delFile = id => new Promise((res,rej)=>{ const r=store('files','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
   const clearDayFiles = dayId => new Promise(async (res,rej)=>{ try{ const all=await getFiles(dayId); const s=store('files','readwrite'); let n=all.length; if(!n) return res(); all.forEach(it=>{ const d=s.delete(it.id); d.onsuccess=()=>{ if(--n===0) res(); }; d.onerror=()=>rej(d.error); }); }catch(e){ rej(e); } });
-  // text
   const saveText = (tbl, dayId, text)=> new Promise((res,rej)=>{ const r=store(tbl,'readwrite').put({dayId,text}); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
   const getText = (tbl, dayId)=> new Promise((res,rej)=>{ const r=store(tbl).get(dayId); r.onsuccess=()=>res(r.result?.text||''); r.onerror=()=>rej(r.error); });
-  // meta
   const setMeta = (k,v)=> new Promise((res,rej)=>{ const r=store('meta','readwrite').put({key:k,value:v}); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
   const getMeta = k => new Promise((res,rej)=>{ const r=store('meta').get(k); r.onsuccess=()=>res(r.result?.value); r.onerror=()=>rej(r.error); });
 
@@ -213,7 +206,6 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       uploader.addEventListener('drop', e=>{ const files=Array.from(e.dataTransfer.files||[]); handleFiles(id, files, card); });
       card.addEventListener('paste', e=>{ const it=e.clipboardData?.items||[]; const files=[]; for(const i of it){ if(i.kind==='file'){ const f=i.getAsFile(); if(f) files.push(f); } } if(files.length){ handleFiles(id, files, card); e.preventDefault(); } });
 
-      // Actions
       card.querySelector('[data-action="clear"]').addEventListener('click', async ()=>{
         if(!confirm(`Clear ${name}?`)) return;
         if(ok){ await clearDayFiles(id); await saveText('notes', id, ''); await saveText('hours', id, ''); await saveText('tags', id, ''); }
@@ -222,13 +214,18 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       card.querySelector('[data-action="download"]').addEventListener('click', async ()=>{
         const files = ok ? await getFiles(id) : [];
         if(!files.length){ alert('No files for this day.'); return; }
-        const links = files.map(f=>{
-          const url = URL.createObjectURL(f.blob);
-          return `<li><a href="${url}" download="${encodeURIComponent(f.filename)}">${escapeHtml(f.filename)} (${escapeHtml(f.mime||'file')})</a></li>`;
-        }).join('');
-        const w = open('', '_blank'); if(!w){ alert('Allow popups.'); return; }
-        w.document.write(`<title>Downloads — ${name} ${date}</title><ul>${links}</ul><p>Close this tab after downloading.</p>`);
-        w.document.close();
+        const { default: JSZip } = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+        const zip = new JSZip();
+        for (const file of files) {
+          zip.file(file.filename, file.blob);
+        }
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(zipBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${id}_files.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
       });
 
       daysGrid.appendChild(node);
@@ -250,12 +247,12 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       if((it.mime||'').startsWith('image/')) content = Object.assign(document.createElement('img'), {className:'thumb', src:url, alt:it.filename});
       else if((it.mime||'').startsWith('video/')) content = Object.assign(document.createElement('video'), {className:'thumb', src:url, controls:true, preload:'metadata'});
       else { const a=document.createElement('a'); a.href=url; a.download=it.filename; a.className='filechip'; a.innerHTML='📄 '+escapeHtml(it.filename)+`<small>${escapeHtml(it.mime||'file')}</small>`; content=a; }
-      content.addEventListener('pointerdown', ()=>{ const t=setTimeout(()=> open(url,'_blank'), 500); const cancel=()=>{ clearTimeout(t); content.removeEventListener('pointerup', cancel); content.removeEventListener('pointerleave', cancel); content.removeEventListener('pointercancel', cancel); }; content.addEventListener('pointerup', cancel); content.addEventListener('pointerleave', cancel); content.addEventListener('pointercancel', cancel); });
+      content.addEventListener('click', ()=> open(url,'_blank'));
       const actions = document.createElement('div'); actions.className='actions';
       const star = document.createElement('button'); star.className='icon star'+(it.starred?' active':''); star.textContent='★'; star.title='Star';
       star.addEventListener('click', async ()=>{ it.starred=!it.starred; await putFile(it); await refreshDay(dayId); });
       const del = document.createElement('button'); del.className='icon'; del.textContent='🗑'; del.title='Delete';
-      del.addEventListener('click', async ()=>{ if(!confirm('Delete this item?')) return; await delFile(it.id); await refreshDay(dayId); });
+      del.addEventListener('click', async ()=>{ if(!confirm('Delete this item?')) return; await delFile(it.id); URL.revokeObjectURL(url); await refreshDay(dayId); });
       actions.appendChild(star); actions.appendChild(del);
       box.appendChild(content); box.appendChild(actions); gallery.appendChild(box);
     }
@@ -263,7 +260,7 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     applySearch();
   }
 
-  async function handleFiles(dayId, files, card){
+  async function handleFiles(dayId, files){
     if(!files?.length) return;
     for(const f of files){
       let blob = f;
@@ -291,14 +288,14 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     });
   }
 
-  // ----- Search -----
   $('#search').addEventListener('input', debounce(applySearch,150));
   async function applySearch(){
     const q=($('#search').value||'').trim().toLowerCase();
     for(const [dayId, bundle] of dayCards.entries()){
       const card = bundle.card;
-      const notes = card.querySelector('.notes').value.toLowerCase();
-      let match = !q || notes.includes(q);
+      const notes = (card.querySelector('.notes').value||'').toLowerCase();
+      const tags = (card.querySelector('.tags').value||'').toLowerCase();
+      let match = !q || notes.includes(q) || tags.includes(q);
       if(!match && ok){
         const files = await getFiles(dayId);
         match = files.some(f=> (f.filename||'').toLowerCase().includes(q));
@@ -307,7 +304,6 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     }
   }
 
-  // ----- Markdown (daily log only) -----
   function buildMarkdown(){
     let md = `# Daily Log (${weekDays()[0]} → ${weekDays()[6]})\n`;
     for(const id of weekDays()){
@@ -321,22 +317,14 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     }
     return md;
   }
-
-  // Existing print → choose Save as PDF in dialog
+  
   $('#printBtn').addEventListener('click', ()=>{
     const md = buildMarkdown();
-    const prev = $('#mdPreview'); prev.textContent = md; prev.hidden = false;
+    mdPreview.textContent = md; mdPreview.hidden = false;
     window.print();
+    mdPreview.hidden = true;
   });
 
-  // NEW: Dedicated Save as PDF button (same flow as print)
-  $('#savePdfBtn').addEventListener('click', ()=>{
-    const md = buildMarkdown();
-    const prev = $('#mdPreview'); prev.textContent = md; prev.hidden = false;
-    window.print(); // pick "Save as PDF"
-  });
-
-  // ----- Backup (refactored) -----
   async function exportBackup({quiet=false} = {}) {
     if(!ok){ alert('Storage disabled; nothing to export.'); return; }
     if(!quiet && !confirm('Create JSON backup? (Large videos make big files)')) return;
@@ -348,13 +336,8 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       new Promise(res=>{ const r=store('tags').getAll(); r.onsuccess=()=>res(r.result||[]); }),
     ]);
 
-    async function b64(blob){
-      const ab=await blob.arrayBuffer(); let bin=''; const bytes=new Uint8Array(ab); const chunk=0x8000;
-      for(let i=0;i<bytes.length;i+=chunk){ bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
-      return btoa(bin);
-    }
-
-    const payload={version:1, createdAt:Date.now(), start: state.start, files:[], notesAll, hoursAll, tagsAll};
+    const b64 = blob => new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result.split(',')[1]); r.readAsDataURL(blob); });
+    const payload={version:2, createdAt:Date.now(), start: state.start, files:[], notesAll, hoursAll, tagsAll};
     for(const f of files){
       payload.files.push({ id:f.id, dayId:f.dayId, filename:f.filename, mime:f.mime, createdAt:f.createdAt, starred:!!f.starred, base64: await b64(f.blob) });
     }
@@ -367,57 +350,92 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     URL.revokeObjectURL(url);
 
     if(quiet){
+      const oldText = counter.textContent;
       counter.textContent = 'Saved ✓';
-      setTimeout(updateCounter, 1500);
+      setTimeout(() => counter.textContent = oldText, 1500);
     }
   }
+  
+  async function importBackup(file){
+      if(!file) return;
+      if(!confirm("Importing will ERASE all current data. Are you sure?")) return;
+      const text = await file.text();
+      let data;
+      try{ data = JSON.parse(text); } catch(e){ alert('Invalid backup file.'); return; }
+      if(!data || data.version !== 2){ alert('Invalid or outdated backup file format.'); return; }
 
-  // Wire up buttons
+      const b64toBlob = (b64, type) => fetch(`data:${type};base64,${b64}`).then(res=>res.blob());
+      const tx = db.transaction(['files','notes','hours','tags','meta'], 'readwrite');
+      tx.objectStore('files').clear(); tx.objectStore('notes').clear();
+      tx.objectStore('hours').clear(); tx.objectStore('tags').clear();
+      
+      for(const item of data.notesAll) tx.objectStore('notes').put(item);
+      for(const item of data.hoursAll) tx.objectStore('hours').put(item);
+      for(const item of data.tagsAll) tx.objectStore('tags').put(item);
+
+      for(const f of data.files){
+          const blob = await b64toBlob(f.base64, f.mime);
+          tx.objectStore('files').put({ id:f.id, dayId:f.dayId, filename:f.filename, mime:f.mime, createdAt:f.createdAt, starred:!!f.starred, blob });
+      }
+
+      state.start = data.start || DEFAULT_START;
+      tx.objectStore('meta').put({key: 'start', value: state.start});
+
+      tx.oncomplete = () => {
+          startDate.value = state.start;
+          alert('Import complete!');
+          buildDays();
+      };
+      tx.onerror = (e) => {
+          alert('An error occurred during import: ' + e.target.error);
+      }
+  }
+
   $('#exportBtn').addEventListener('click', ()=> exportBackup({quiet:false}));
   $('#saveNowBtn').addEventListener('click', ()=> exportBackup({quiet:true}));
-
-  // ----- Clear All -----
+  $('#importFile').addEventListener('change', (e)=> importBackup(e.target.files[0]));
+  
   $('#clearAllBtn').addEventListener('click', async ()=>{
-    if(!confirm('Erase all stored data (files + notes)?')) return;
-    const t=db.transaction(['files','notes','hours','tags'],'readwrite');
-    t.objectStore('files').clear();
-    t.objectStore('notes').clear();
-    t.objectStore('hours').clear();
-    t.objectStore('tags').clear();
-    t.oncomplete = ()=> buildDays();
+    if(!confirm('Erase all stored data (files + notes)? This is irreversible.')) return;
+    if(!confirm('Are you absolutely sure you want to delete everything?')) return;
+    const t=db.transaction(['files','notes','hours','tags','meta'],'readwrite');
+    t.objectStore('files').clear(); t.objectStore('notes').clear();
+    t.objectStore('hours').clear(); t.objectStore('tags').clear();
+    t.objectStore('meta').clear();
+    t.oncomplete = ()=> {
+        state.start = DEFAULT_START;
+        startDate.value = DEFAULT_START;
+        buildDays();
+    };
   });
 
-  // ----- Counters & Storage estimate -----
   async function showStorageEstimate(){
     if (navigator.storage && navigator.storage.estimate) {
       const {quota=0, usage=0} = await navigator.storage.estimate();
-      const mb = n => (n/1024/1024).toFixed(1)+' MB';
-      counter.title = `Storage: ${mb(usage)} used of ~${mb(quota)}`;
+      counter.title = `Storage: ${fmtMB(usage)} used of ~${fmtMB(quota)}`;
     }
   }
 
-  async function updateCounter(){
+  const updateCounter = debounce(async function(){
     if(!ok){ counter.textContent='Storage disabled'; return; }
     const files = await getAllFiles();
     const total = files.reduce((s,f)=> s + (f.blob?.size||0), 0);
     counter.textContent = `Files: ${files.length}, ~${fmtMB(total)}`;
     showStorageEstimate();
-  }
-  setInterval(updateCounter, 2000);
-  $('#search').addEventListener('input', debounce(applySearch,150));
+  }, 500);
+  
+  document.addEventListener('visibilitychange', updateCounter);
 
-  // ----- Init -----
   (async function init(){
     startDate.value = DEFAULT_START;
     startDate.addEventListener('change', async ()=>{
       state.start = startDate.value || DEFAULT_START;
-      await setMeta('start', state.start);
+      if(ok) await setMeta('start', state.start);
       await buildDays();
     });
     try{ await openDB(); }catch(e){ console.warn('IDB unavailable', e); }
-    if(!ok){ $('#idbBanner').style.display='block'; }
+    if(!ok){ idbBanner.style.display='block'; }
 
-    // NEW: request persistent storage to reduce data eviction risk
     try {
       if (navigator.storage && navigator.storage.persist) {
         const granted = await navigator.storage.persist();
@@ -425,12 +443,13 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       }
     } catch {}
 
-    const savedStart = await getMeta('start'); if(savedStart){ state.start=savedStart; startDate.value=savedStart; }
+    const savedStart = ok ? await getMeta('start') : null;
+    if(savedStart){ state.start=savedStart; startDate.value=savedStart; }
     await buildDays();
     updateCounter();
+    setInterval(updateCounter, 5000); // Periodically refresh
   })();
 })();
 </script>
 </body>
 </html>
-
