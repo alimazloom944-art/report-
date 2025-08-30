@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+nt-size:12px;color:var(--text);text-decoration:none}
+.filechip small{display:block;color:var(--mut<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
@@ -39,8 +40,7 @@ input[type="date"],input[type="search"],input[type="number"],input[type="text"]{
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:8px}
 .item{position:relative;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f3f4f6}
 .thumb{width:100%;height:110px;object-fit:cover;display:block}
-.filechip{display:block;padding:8px;font-size:12px;color:var(--text);text-decoration:none}
-.filechip small{display:block;color:var(--muted)}
+.filechip{display:block;padding:8px;foed)}
 .actions{position:absolute;top:6px;right:6px;display:flex;gap:4px}
 .icon{border:1px solid var(--border);background:#ffffffcc;color:var(--text);width:28px;height:28px;border-radius:8px;display:grid;place-items:center;cursor:pointer;font-size:14px}
 .icon.star.active{border-color:var(--warn);background:#fef3c7}
@@ -425,7 +425,56 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
   }, 500);
   
   document.addEventListener('visibilitychange', updateCounter);
+// PASTE THESE TWO FUNCTIONS BEFORE THE "init" FUNCTION
 
+  const b64toBlob = (b64, type) => fetch(`data:${type};base64,${b64}`).then(res => res.blob());
+
+  async function preloadDataIfNeeded() {
+    // 1. Check if the database is empty by counting items in one store
+    const hasData = await new Promise(res => {
+      const r = store('notes').count();
+      r.onsuccess = () => res(r.result > 0);
+      r.onerror = () => res(true); // Assume it has data on error to be safe
+    });
+
+    if (hasData) {
+      console.log('Database already contains data. Skipping preload.');
+      return;
+    }
+
+    // 2. If empty, load the data from PRELOADED_DATA
+    console.log('Database is empty. Loading pre-filled data...');
+    const tx = db.transaction(['files', 'notes', 'hours', 'tags', 'meta'], 'readwrite');
+    
+    PRELOADED_DATA.notesAll.forEach(item => tx.objectStore('notes').put(item));
+    PRELOADED_DATA.hoursAll.forEach(item => tx.objectStore('hours').put(item));
+    PRELOADED_DATA.tagsAll.forEach(item => tx.objectStore('tags').put(item));
+    
+    for (const f of PRELOADED_DATA.files) {
+      const blob = await b64toBlob(f.base64, f.mime);
+      tx.objectStore('files').put({ id: f.id, dayId: f.dayId, filename: f.filename, mime: f.mime, createdAt: f.createdAt, starred: !!f.starred, blob });
+    }
+
+    tx.objectStore('meta').put({ key: 'start', value: PRELOADED_DATA.start });
+
+    return new Promise(res => {
+      tx.oncomplete = () => {
+        console.log('Preload complete!');
+        // Update state to match preloaded start date
+        state.start = PRELOADED_DATA.start;
+        startDate.value = PRELOADED_DATA.start;
+        res();
+      };
+      tx.onerror = () => {
+        console.error('Preload failed.');
+        res(); // Resolve anyway to not block the app
+      }
+    });
+  }
+
+  // ----- Init -----
+  (async function init(){
+    // ...
   (async function init(){
     startDate.value = DEFAULT_START;
     startDate.addEventListener('change', async ()=>{
@@ -435,6 +484,8 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     });
     try{ await openDB(); }catch(e){ console.warn('IDB unavailable', e); }
     if(!ok){ idbBanner.style.display='block'; }
+
+      if(ok) { await preloadDataIfNeeded(); }
 
     try {
       if (navigator.storage && navigator.storage.persist) {
@@ -451,5 +502,31 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
   })();
 })();
 </script>
+    <script>
+(function(){
+  // ----- ADD THIS BLOCK AT THE TOP -----
+  const PRELOADED_DATA = {
+    "version": 2,
+    "createdAt": 1756569116345,
+    "start": "2025-08-23",
+    "files": [
+        { "id": "f...", "dayId": "2025-08-23", "filename": "photo.jpg", "mime": "image/jpeg", "base64": "..." }
+    ],
+    "notesAll": [
+        { "dayId": "2025-08-23", "text": "This is a pre-loaded note." }
+    ],
+    "hoursAll": [
+        { "dayId": "2025-08-23", "text": "8" }
+    ],
+    "tagsAll": [
+        { "dayId": "2025-08-23", "text": "demo, example" }
+    ]
+    // ... REST OF YOUR JSON CONTENT ...
+  };
+  // ------------------------------------
+
+  // ----- Utilities -----
+  const getTodayISO = () => new Date().toISOString().slice(0, 10);
+  // ... the rest of the script continues here ...
 </body>
 </html>
