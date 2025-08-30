@@ -455,10 +455,12 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     PRELOADED_DATA.hoursAll.forEach(item => tx.objectStore('hours').put(item));
     PRELOADED_DATA.tagsAll.forEach(item => tx.objectStore('tags').put(item));
     
-    for (const f of PRELOADED_DATA.files) {
+    const filePromises = PRELOADED_DATA.files.map(async (f) => {
       const blob = await b64toBlob(f.base64, f.mime);
       tx.objectStore('files').put({ id: f.id, dayId: f.dayId, filename: f.filename, mime: f.mime, createdAt: f.createdAt, starred: !!f.starred, blob });
-    }
+    });
+    
+    await Promise.all(filePromises);
 
     tx.objectStore('meta').put({ key: 'start', value: PRELOADED_DATA.start });
 
@@ -507,4 +509,7 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
 })();
 </script>
 </body>
-</html> can you check it out for me
+</html>
+
+
+
