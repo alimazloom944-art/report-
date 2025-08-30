@@ -64,11 +64,16 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       <input type="search" id="search" placeholder="Search filenames & notes…">
       <label class="switch"><input type="checkbox" id="optimize" checked> Optimize images</label>
       <button class="btn" id="exportBtn">Export Backup</button>
+      <!-- NEW: Manual Save (silent quick export) -->
+      <button class="btn" id="saveNowBtn">Save</button>
       <label class="btn" for="importFile">Import Backup</label>
       <input id="importFile" type="file" accept="application/json" style="display:none">
+      <!-- NEW: Dedicated Save as PDF (uses print flow) -->
+      <button class="btn warn" id="savePdfBtn">Save as PDF</button>
+      <!-- Existing print button kept -->
       <button class="btn warn" id="printBtn">Print / PDF</button>
       <button class="btn bad" id="clearAllBtn">Clear All</button>
-      <div class="counter" id="counter"></div>
+      <div class="counter" id="counter" title="Storage usage"></div>
     </div>
     <div class="banner" id="idbBanner">⚠ Storage not available (Private Browsing?)</div>
     <div class="sub">iPad tip: Safari → Share → <b>Add to Home Screen</b> for app-like use.</div>
@@ -133,7 +138,7 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
         db.createObjectStore('notes',{keyPath:'dayId'});
         db.createObjectStore('hours',{keyPath:'dayId'});
         db.createObjectStore('tags',{keyPath:'dayId'});
-        db.createObjectStore('meta',{keyPath:'key'}); // just for start date if needed
+        db.createObjectStore('meta',{keyPath:'key'}); // start date, etc.
       };
       req.onsuccess = async ()=>{
         db=req.result;
@@ -304,7 +309,7 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
 
   // ----- Markdown (daily log only) -----
   function buildMarkdown(){
-    let md = `# Daily Log (${weekDays()[0]} → ${weekDays()[6]})\\n`;
+    let md = `# Daily Log (${weekDays()[0]} → ${weekDays()[6]})\n`;
     for(const id of weekDays()){
       const {name, date} = nameAndDate(id);
       const bundle = dayCards.get(id);
@@ -312,65 +317,64 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
       const tags = bundle.card.querySelector('.tags').value || '';
       const notes = bundle.card.querySelector('.notes').value.trim() || '(no notes)';
       const files = bundle.countEl.textContent || '0';
-      md += `\\n## ${name}, ${date}\\n- Hours: ${hrs}\\n- Tags: ${tags}\\n- Files: ${files}\\n\\n${notes}\\n`;
+      md += `\n## ${name}, ${date}\n- Hours: ${hrs}\n- Tags: ${tags}\n- Files: ${files}\n\n${notes}\n`;
     }
     return md;
   }
 
+  // Existing print → choose Save as PDF in dialog
   $('#printBtn').addEventListener('click', ()=>{
     const md = buildMarkdown();
     const prev = $('#mdPreview'); prev.textContent = md; prev.hidden = false;
     window.print();
   });
 
-  // ----- Backup -----
-  $('#exportBtn').addEventListener('click', async ()=>{
+  // NEW: Dedicated Save as PDF button (same flow as print)
+  $('#savePdfBtn').addEventListener('click', ()=>{
+    const md = buildMarkdown();
+    const prev = $('#mdPreview'); prev.textContent = md; prev.hidden = false;
+    window.print(); // pick "Save as PDF"
+  });
+
+  // ----- Backup (refactored) -----
+  async function exportBackup({quiet=false} = {}) {
     if(!ok){ alert('Storage disabled; nothing to export.'); return; }
-    if(!confirm('Create JSON backup? (Large videos make big files)')) return;
+    if(!quiet && !confirm('Create JSON backup? (Large videos make big files)')) return;
+
     const [files, notesAll, hoursAll, tagsAll] = await Promise.all([
       getAllFiles(),
       new Promise(res=>{ const r=store('notes').getAll(); r.onsuccess=()=>res(r.result||[]); }),
       new Promise(res=>{ const r=store('hours').getAll(); r.onsuccess=()=>res(r.result||[]); }),
       new Promise(res=>{ const r=store('tags').getAll(); r.onsuccess=()=>res(r.result||[]); }),
     ]);
+
     async function b64(blob){
       const ab=await blob.arrayBuffer(); let bin=''; const bytes=new Uint8Array(ab); const chunk=0x8000;
       for(let i=0;i<bytes.length;i+=chunk){ bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
       return btoa(bin);
     }
+
     const payload={version:1, createdAt:Date.now(), start: state.start, files:[], notesAll, hoursAll, tagsAll};
     for(const f of files){
       payload.files.push({ id:f.id, dayId:f.dayId, filename:f.filename, mime:f.mime, createdAt:f.createdAt, starred:!!f.starred, base64: await b64(f.blob) });
     }
     const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
-    const a=document.createElement('a'); a.href=url; a.download=`daily-only-backup_${state.start}.json`; a.click();
+    const a=document.createElement('a');
+    const niceDate = (new Date()).toISOString().slice(0,10);
+    a.href=url; a.download=`daily-only-backup_${state.start}_${niceDate}.json`;
+    a.click();
     URL.revokeObjectURL(url);
-  });
 
-  $('#importFile').addEventListener('change', async (e)=>{
-    const file=e.target.files?.[0]; if(!file) return;
-    try{
-      const txt = await file.text(); const data=JSON.parse(txt);
-      if(!Array.isArray(data.files)) throw new Error('Invalid backup');
-      if(!confirm('Importing will ADD files & notes. Continue?')) return;
-      if(data.start){ state.start=data.start; startDate.value=state.start; await buildDays(); }
-      for(const f of data.files){
-        const bin=atob(f.base64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
-        const blob = new Blob([arr.buffer], {type:f.mime||'application/octet-stream'});
-        await putFile({ id:f.id||uid(), dayId:f.dayId, filename:f.filename, blob, mime:f.mime||'application/octet-stream', createdAt:f.createdAt||Date.now(), starred:!!f.starred });
-      }
-      for(const n of (data.notesAll||[])){ await saveText('notes', n.dayId, n.text||''); }
-      for(const h of (data.hoursAll||[])){ await saveText('hours', h.dayId, h.text||''); }
-      for(const t of (data.tagsAll||[])){ await saveText('tags', t.dayId, t.text||''); }
-      await buildDays();
-      alert('Import complete.');
-    }catch(err){
-      alert('Import failed: '+err.message);
-    }finally{
-      e.target.value='';
+    if(quiet){
+      counter.textContent = 'Saved ✓';
+      setTimeout(updateCounter, 1500);
     }
-  });
+  }
+
+  // Wire up buttons
+  $('#exportBtn').addEventListener('click', ()=> exportBackup({quiet:false}));
+  $('#saveNowBtn').addEventListener('click', ()=> exportBackup({quiet:true}));
 
   // ----- Clear All -----
   $('#clearAllBtn').addEventListener('click', async ()=>{
@@ -383,12 +387,21 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     t.oncomplete = ()=> buildDays();
   });
 
-  // ----- Counters & Search -----
+  // ----- Counters & Storage estimate -----
+  async function showStorageEstimate(){
+    if (navigator.storage && navigator.storage.estimate) {
+      const {quota=0, usage=0} = await navigator.storage.estimate();
+      const mb = n => (n/1024/1024).toFixed(1)+' MB';
+      counter.title = `Storage: ${mb(usage)} used of ~${mb(quota)}`;
+    }
+  }
+
   async function updateCounter(){
     if(!ok){ counter.textContent='Storage disabled'; return; }
     const files = await getAllFiles();
     const total = files.reduce((s,f)=> s + (f.blob?.size||0), 0);
     counter.textContent = `Files: ${files.length}, ~${fmtMB(total)}`;
+    showStorageEstimate();
   }
   setInterval(updateCounter, 2000);
   $('#search').addEventListener('input', debounce(applySearch,150));
@@ -403,6 +416,15 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
     });
     try{ await openDB(); }catch(e){ console.warn('IDB unavailable', e); }
     if(!ok){ $('#idbBanner').style.display='block'; }
+
+    // NEW: request persistent storage to reduce data eviction risk
+    try {
+      if (navigator.storage && navigator.storage.persist) {
+        const granted = await navigator.storage.persist();
+        console.log('Persistent storage', granted ? 'granted' : 'not granted');
+      }
+    } catch {}
+
     const savedStart = await getMeta('start'); if(savedStart){ state.start=savedStart; startDate.value=savedStart; }
     await buildDays();
     updateCounter();
@@ -411,6 +433,4 @@ textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px
 </script>
 </body>
 </html>
-
-
 
