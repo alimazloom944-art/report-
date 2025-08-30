@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weekly — Daily Only (Full)</title>
+<style>
+:root{
+  --bg:#fafafa; --panel:#ffffff; --border:#e5e7eb; --text:#111827; --muted:#6b7280;
+  --acc:#2563eb; --acc2:#7c3aed; --ok:#059669; --warn:#d97706; --bad:#dc2626;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:ui-sans-serif,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+header{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--border)}
+.wrap{max-width:1200px;margin:0 auto;padding:12px}
+.title{font-weight:800;font-size:clamp(22px,4vw,34px);background:linear-gradient(90deg,var(--acc),var(--acc2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:var(--muted)}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.btn{border:1px solid var(--border);background:var(--panel);color:var(--text);padding:9px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+.btn:hover{border-color:var(--acc)}
+.btn.warn:hover{border-color:var(--warn)}
+.btn.bad:hover{border-color:var(--bad)}
+input[type="date"],input[type="search"],input[type="number"],input[type="text"]{border:1px solid var(--border);border-radius:10px;padding:9px 10px;background:#fff;color:var(--text)}
+.switch{display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:var(--panel)}
+.counter{color:var(--muted);margin-left:auto}
+.banner{display:none;margin-top:8px;padding:8px 10px;border:1px solid var(--bad);background:#fee2e2;color:var(--bad);border-radius:10px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;padding:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;box-shadow:0 2px 4px rgba(0,0,0,.05);display:flex;flex-direction:column;gap:10px}
+.dayhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.small{color:var(--muted);font-size:12px}
+.pill{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--border);border-radius:999px;padding:6px 10px;background:#f3f4f6;color:var(--muted);font-size:12px}
+
+.uploader{border:2px dashed var(--border);border-radius:12px;padding:10px;background:#f9fafb;cursor:pointer}
+.uploader:hover{border-color:var(--acc)}
+.uploader.drag{border-color:var(--acc2);background:#ede9fe}
+.uploader input{display:none}
+
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(95px,1fr));gap:8px}
+.item{position:relative;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#f3f4f6}
+.thumb{width:100%;height:110px;object-fit:cover;display:block}
+.filechip{display:block;padding:8px;font-size:12px;color:var(--text);text-decoration:none}
+.filechip small{display:block;color:var(--muted)}
+.actions{position:absolute;top:6px;right:6px;display:flex;gap:4px}
+.icon{border:1px solid var(--border);background:#ffffffcc;color:var(--text);width:28px;height:28px;border-radius:8px;display:grid;place-items:center;cursor:pointer;font-size:14px}
+.icon.star.active{border-color:var(--warn);background:#fef3c7}
+textarea{width:100%;min-height:90px;background:#fff;color:var(--text);border:1px solid var(--border);border-radius:10px;padding:10px;resize:vertical}
+
+.preview{white-space:pre-wrap;border:1px dashed var(--border);background:#fff;border-radius:10px;padding:12px;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;margin:12px}
+@media print{
+  header, .no-print { display:none !important; }
+  body{background:#fff}
+  .card{box-shadow:none;border-color:#ddd}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="title">Weekly — Daily Only (Full)</div>
+    <div class="sub">Daily entries: hours, tags, notes, uploads. Offline & backed up.</div>
+    <div class="toolbar">
+      <label>Start date: <input type="date" id="startDate"></label>
+      <input type="search" id="search" placeholder="Search filenames & notes…">
+      <label class="switch"><input type="checkbox" id="optimize" checked> Optimize images</label>
+      <button class="btn" id="exportBtn">Export Backup</button>
+      <label class="btn" for="importFile">Import Backup</label>
+      <input id="importFile" type="file" accept="application/json" style="display:none">
+      <button class="btn warn" id="printBtn">Print / PDF</button>
+      <button class="btn bad" id="clearAllBtn">Clear All</button>
+      <div class="counter" id="counter"></div>
+    </div>
+    <div class="banner" id="idbBanner">⚠ Storage not available (Private Browsing?)</div>
+    <div class="sub">iPad tip: Safari → Share → <b>Add to Home Screen</b> for app-like use.</div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="grid" id="daysGrid"></section>
+  <section class="preview no-print" id="mdPreview" hidden></section>
+</main>
+
+<template id="dayTpl">
+  <div class="card day">
+    <div class="dayhead">
+      <div><b class="name"></b> <span class="small date"></span></div>
+      <div class="small" style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="pill">⏱ <span class="hoursTotal">0</span> h</span>
+        <span class="pill">📦 <span class="count">0</span> items</span>
+        <button class="btn" data-action="download" title="Download all files for this day">Download</button>
+        <button class="btn bad" data-action="clear" title="Clear day">Clear</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label>Hours: <input class="hours" type="number" min="0" step="0.25" style="width:90px"></label>
+      <input class="tags" type="text" placeholder="Tags (comma separated)" style="flex:1">
+    </div>
+    <div>
+      <label class="small">Notes</label>
+      <textarea class="notes" placeholder="What did you do today?"></textarea>
+    </div>
+    <label class="uploader">
+      <input class="file" type="file" multiple
+             accept="image/*,video/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,text/plain,application/zip">
+      <div>➕ <b>Add files</b> — drag & drop / paste</div>
+    </label>
+    <div class="gallery"></div>
+  </div>
+</template>
+
+<script>
+(function(){
+  // ----- Utilities -----
+  const DEFAULT_START = '2025-08-23';
+  const $ = (s,el=document)=> el.querySelector(s);
+  const fmtMB = b => (b/1024/1024).toFixed(1)+' MB';
+  const debounce = (fn,ms=300)=>{let t;return (...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}}
+  const uid = ()=> 'f'+Math.random().toString(36).slice(2)+Date.now().toString(36);
+  const escapeHtml = s => (s||'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const addDays = (iso,n)=>{ const d = new Date(iso+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); };
+  const label = iso => { const d=new Date(iso+'T00:00:00'); return d.toLocaleDateString(undefined,{weekday:'long', month:'short', day:'numeric'}); };
+
+  // ----- IndexedDB -----
+  let db, ok=false;
+  function openDB(){
+    return new Promise((resolve,reject)=>{
+      if(!('indexedDB' in self)) return reject(new Error('NoIndexedDB'));
+      const req = indexedDB.open('weekly-daily-only-v1', 1);
+      req.onupgradeneeded = e=>{
+        const db = e.target.result;
+        const files = db.createObjectStore('files',{keyPath:'id'});
+        files.createIndex('dayId','dayId',{unique:false});
+        db.createObjectStore('notes',{keyPath:'dayId'});
+        db.createObjectStore('hours',{keyPath:'dayId'});
+        db.createObjectStore('tags',{keyPath:'dayId'});
+        db.createObjectStore('meta',{keyPath:'key'}); // just for start date if needed
+      };
+      req.onsuccess = async ()=>{
+        db=req.result;
+        try{
+          await putFile({id:'__t__', dayId:'test', filename:'t.txt', blob:new Blob(['ok'],{type:'text/plain'}), mime:'text/plain', createdAt:Date.now(), starred:false});
+          await delFile('__t__'); ok=true; resolve();
+        }catch(err){ reject(err); }
+      };
+      req.onerror = ()=> reject(req.error||new Error('IDB open failed'));
+    });
+  }
+  const store = (name,mode='readonly')=> db.transaction(name,mode).objectStore(name);
+  // files
+  const putFile = rec => new Promise((res,rej)=>{ const r=store('files','readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+  const getFiles = dayId => new Promise((res,rej)=>{ const r=store('files').index('dayId').getAll(dayId); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); });
+  const getAllFiles = () => new Promise((res,rej)=>{ const r=store('files').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); });
+  const delFile = id => new Promise((res,rej)=>{ const r=store('files','readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+  const clearDayFiles = dayId => new Promise(async (res,rej)=>{ try{ const all=await getFiles(dayId); const s=store('files','readwrite'); let n=all.length; if(!n) return res(); all.forEach(it=>{ const d=s.delete(it.id); d.onsuccess=()=>{ if(--n===0) res(); }; d.onerror=()=>rej(d.error); }); }catch(e){ rej(e); } });
+  // text
+  const saveText = (tbl, dayId, text)=> new Promise((res,rej)=>{ const r=store(tbl,'readwrite').put({dayId,text}); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+  const getText = (tbl, dayId)=> new Promise((res,rej)=>{ const r=store(tbl).get(dayId); r.onsuccess=()=>res(r.result?.text||''); r.onerror=()=>rej(r.error); });
+  // meta
+  const setMeta = (k,v)=> new Promise((res,rej)=>{ const r=store('meta','readwrite').put({key:k,value:v}); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); });
+  const getMeta = k => new Promise((res,rej)=>{ const r=store('meta').get(k); r.onsuccess=()=>res(r.result?.value); r.onerror=()=>rej(r.error); });
+
+  // ----- Elements -----
+  const startDate = $('#startDate'); const search = $('#search'); const optimize = $('#optimize');
+  const idbBanner = $('#idbBanner'); const counter = $('#counter');
+  const daysGrid = $('#daysGrid'); const tplDay = $('#dayTpl'); const mdPreview = $('#mdPreview');
+
+  // ----- State & days -----
+  const state = { start: DEFAULT_START };
+  const dayCards = new Map();
+  const weekDays = ()=> Array.from({length:7}, (_,i)=> addDays(state.start,i));
+
+  function nameAndDate(iso){
+    const s = label(iso);
+    const m = s.match(/^([^,]+),\s*(.*)$/);
+    return m ? { name:m[1], date:m[2] } : { name:s, date:'' };
+  }
+
+  async function buildDays(){
+    daysGrid.innerHTML=''; dayCards.clear();
+    for(const id of weekDays()){
+      const {name, date} = nameAndDate(id);
+      const node = tplDay.content.cloneNode(true);
+      const card = node.querySelector('.day'); card.dataset.day=id;
+      card.querySelector('.name').textContent = name;
+      card.querySelector('.date').textContent = date;
+      const notes = card.querySelector('.notes');
+      const hours = card.querySelector('.hours');
+      const tags = card.querySelector('.tags');
+      const fileInput = card.querySelector('.file');
+      const uploader = card.querySelector('.uploader');
+      const gallery = card.querySelector('.gallery');
+      const countEl = card.querySelector('.count');
+      const hoursTotal = card.querySelector('.hoursTotal');
+
+      if(ok){
+        getText('notes', id).then(v=> notes.value=v||'');
+        getText('hours', id).then(v=> { hours.value=v||''; hoursTotal.textContent=v||'0'; });
+        getText('tags', id).then(v=> tags.value=v||'');
+      }
+
+      notes.addEventListener('input', debounce(()=> ok && saveText('notes', id, notes.value)));
+      hours.addEventListener('input', debounce(()=> { hoursTotal.textContent = hours.value||'0'; ok && saveText('hours', id, hours.value||''); }));
+      tags.addEventListener('input', debounce(()=> ok && saveText('tags', id, tags.value)));
+
+      fileInput.addEventListener('change', e=> handleFiles(id, Array.from(e.target.files), card));
+      ['dragenter','dragover'].forEach(ev=> uploader.addEventListener(ev, e=>{ e.preventDefault(); uploader.classList.add('drag'); }));
+      ['dragleave','drop'].forEach(ev=> uploader.addEventListener(ev, e=>{ e.preventDefault(); uploader.classList.remove('drag'); }));
+      uploader.addEventListener('drop', e=>{ const files=Array.from(e.dataTransfer.files||[]); handleFiles(id, files, card); });
+      card.addEventListener('paste', e=>{ const it=e.clipboardData?.items||[]; const files=[]; for(const i of it){ if(i.kind==='file'){ const f=i.getAsFile(); if(f) files.push(f); } } if(files.length){ handleFiles(id, files, card); e.preventDefault(); } });
+
+      // Actions
+      card.querySelector('[data-action="clear"]').addEventListener('click', async ()=>{
+        if(!confirm(`Clear ${name}?`)) return;
+        if(ok){ await clearDayFiles(id); await saveText('notes', id, ''); await saveText('hours', id, ''); await saveText('tags', id, ''); }
+        await refreshDay(id);
+      });
+      card.querySelector('[data-action="download"]').addEventListener('click', async ()=>{
+        const files = ok ? await getFiles(id) : [];
+        if(!files.length){ alert('No files for this day.'); return; }
+        const links = files.map(f=>{
+          const url = URL.createObjectURL(f.blob);
+          return `<li><a href="${url}" download="${encodeURIComponent(f.filename)}">${escapeHtml(f.filename)} (${escapeHtml(f.mime||'file')})</a></li>`;
+        }).join('');
+        const w = open('', '_blank'); if(!w){ alert('Allow popups.'); return; }
+        w.document.write(`<title>Downloads — ${name} ${date}</title><ul>${links}</ul><p>Close this tab after downloading.</p>`);
+        w.document.close();
+      });
+
+      daysGrid.appendChild(node);
+      dayCards.set(id, { card: daysGrid.lastElementChild, gallery, countEl });
+      await refreshDay(id);
+    }
+  }
+
+  async function refreshDay(dayId){
+    const bundle = dayCards.get(dayId); if(!bundle) return;
+    const { gallery, countEl } = bundle;
+    gallery.innerHTML='';
+    let items = ok ? await getFiles(dayId) : [];
+    items.sort((a,b)=> (Number(b.starred)-Number(a.starred)) || (b.createdAt-a.createdAt));
+    for(const it of items){
+      const url = URL.createObjectURL(it.blob);
+      const box = document.createElement('div'); box.className='item';
+      let content;
+      if((it.mime||'').startsWith('image/')) content = Object.assign(document.createElement('img'), {className:'thumb', src:url, alt:it.filename});
+      else if((it.mime||'').startsWith('video/')) content = Object.assign(document.createElement('video'), {className:'thumb', src:url, controls:true, preload:'metadata'});
+      else { const a=document.createElement('a'); a.href=url; a.download=it.filename; a.className='filechip'; a.innerHTML='📄 '+escapeHtml(it.filename)+`<small>${escapeHtml(it.mime||'file')}</small>`; content=a; }
+      content.addEventListener('pointerdown', ()=>{ const t=setTimeout(()=> open(url,'_blank'), 500); const cancel=()=>{ clearTimeout(t); content.removeEventListener('pointerup', cancel); content.removeEventListener('pointerleave', cancel); content.removeEventListener('pointercancel', cancel); }; content.addEventListener('pointerup', cancel); content.addEventListener('pointerleave', cancel); content.addEventListener('pointercancel', cancel); });
+      const actions = document.createElement('div'); actions.className='actions';
+      const star = document.createElement('button'); star.className='icon star'+(it.starred?' active':''); star.textContent='★'; star.title='Star';
+      star.addEventListener('click', async ()=>{ it.starred=!it.starred; await putFile(it); await refreshDay(dayId); });
+      const del = document.createElement('button'); del.className='icon'; del.textContent='🗑'; del.title='Delete';
+      del.addEventListener('click', async ()=>{ if(!confirm('Delete this item?')) return; await delFile(it.id); await refreshDay(dayId); });
+      actions.appendChild(star); actions.appendChild(del);
+      box.appendChild(content); box.appendChild(actions); gallery.appendChild(box);
+    }
+    countEl.textContent = String(items.length);
+    applySearch();
+  }
+
+  async function handleFiles(dayId, files, card){
+    if(!files?.length) return;
+    for(const f of files){
+      let blob = f;
+      if($('#optimize').checked && f.type.startsWith('image/') && f.size>300*1024){
+        try{ blob = await compressImage(f, 2000, 0.86); }catch{}
+      }
+      const rec = { id:uid(), dayId, filename:f.name||'file', blob, mime:blob.type||f.type||'application/octet-stream', createdAt:Date.now(), starred:false };
+      if(ok){ await putFile(rec); }
+    }
+    await refreshDay(dayId);
+  }
+
+  function compressImage(file, maxDim=2000, quality=0.86){
+    return new Promise((resolve,reject)=>{
+      const img=new Image();
+      img.onload = ()=>{
+        let w=img.width, h=img.height, r=Math.min(1, maxDim/Math.max(w,h));
+        const cw=Math.round(w*r), ch=Math.round(h*r);
+        const canvas=document.createElement('canvas'); canvas.width=cw; canvas.height=ch;
+        canvas.getContext('2d').drawImage(img,0,0,cw,ch);
+        canvas.toBlob(b=> b?resolve(b):reject(new Error('toBlob failed')), 'image/jpeg', quality);
+      };
+      img.onerror = ()=> reject(new Error('img load failed'));
+      img.src = URL.createObjectURL(file);
+    });
+  }
+
+  // ----- Search -----
+  $('#search').addEventListener('input', debounce(applySearch,150));
+  async function applySearch(){
+    const q=($('#search').value||'').trim().toLowerCase();
+    for(const [dayId, bundle] of dayCards.entries()){
+      const card = bundle.card;
+      const notes = card.querySelector('.notes').value.toLowerCase();
+      let match = !q || notes.includes(q);
+      if(!match && ok){
+        const files = await getFiles(dayId);
+        match = files.some(f=> (f.filename||'').toLowerCase().includes(q));
+      }
+      card.style.opacity = match ? '1' : '.28';
+    }
+  }
+
+  // ----- Markdown (daily log only) -----
+  function buildMarkdown(){
+    let md = `# Daily Log (${weekDays()[0]} → ${weekDays()[6]})\\n`;
+    for(const id of weekDays()){
+      const {name, date} = nameAndDate(id);
+      const bundle = dayCards.get(id);
+      const hrs = bundle.card.querySelector('.hours').value || '0';
+      const tags = bundle.card.querySelector('.tags').value || '';
+      const notes = bundle.card.querySelector('.notes').value.trim() || '(no notes)';
+      const files = bundle.countEl.textContent || '0';
+      md += `\\n## ${name}, ${date}\\n- Hours: ${hrs}\\n- Tags: ${tags}\\n- Files: ${files}\\n\\n${notes}\\n`;
+    }
+    return md;
+  }
+
+  $('#printBtn').addEventListener('click', ()=>{
+    const md = buildMarkdown();
+    const prev = $('#mdPreview'); prev.textContent = md; prev.hidden = false;
+    window.print();
+  });
+
+  // ----- Backup -----
+  $('#exportBtn').addEventListener('click', async ()=>{
+    if(!ok){ alert('Storage disabled; nothing to export.'); return; }
+    if(!confirm('Create JSON backup? (Large videos make big files)')) return;
+    const [files, notesAll, hoursAll, tagsAll] = await Promise.all([
+      getAllFiles(),
+      new Promise(res=>{ const r=store('notes').getAll(); r.onsuccess=()=>res(r.result||[]); }),
+      new Promise(res=>{ const r=store('hours').getAll(); r.onsuccess=()=>res(r.result||[]); }),
+      new Promise(res=>{ const r=store('tags').getAll(); r.onsuccess=()=>res(r.result||[]); }),
+    ]);
+    async function b64(blob){
+      const ab=await blob.arrayBuffer(); let bin=''; const bytes=new Uint8Array(ab); const chunk=0x8000;
+      for(let i=0;i<bytes.length;i+=chunk){ bin += String.fromCharCode.apply(null, bytes.subarray(i,i+chunk)); }
+      return btoa(bin);
+    }
+    const payload={version:1, createdAt:Date.now(), start: state.start, files:[], notesAll, hoursAll, tagsAll};
+    for(const f of files){
+      payload.files.push({ id:f.id, dayId:f.dayId, filename:f.filename, mime:f.mime, createdAt:f.createdAt, starred:!!f.starred, base64: await b64(f.blob) });
+    }
+    const blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=`daily-only-backup_${state.start}.json`; a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  $('#importFile').addEventListener('change', async (e)=>{
+    const file=e.target.files?.[0]; if(!file) return;
+    try{
+      const txt = await file.text(); const data=JSON.parse(txt);
+      if(!Array.isArray(data.files)) throw new Error('Invalid backup');
+      if(!confirm('Importing will ADD files & notes. Continue?')) return;
+      if(data.start){ state.start=data.start; startDate.value=state.start; await buildDays(); }
+      for(const f of data.files){
+        const bin=atob(f.base64); const arr=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) arr[i]=bin.charCodeAt(i);
+        const blob = new Blob([arr.buffer], {type:f.mime||'application/octet-stream'});
+        await putFile({ id:f.id||uid(), dayId:f.dayId, filename:f.filename, blob, mime:f.mime||'application/octet-stream', createdAt:f.createdAt||Date.now(), starred:!!f.starred });
+      }
+      for(const n of (data.notesAll||[])){ await saveText('notes', n.dayId, n.text||''); }
+      for(const h of (data.hoursAll||[])){ await saveText('hours', h.dayId, h.text||''); }
+      for(const t of (data.tagsAll||[])){ await saveText('tags', t.dayId, t.text||''); }
+      await buildDays();
+      alert('Import complete.');
+    }catch(err){
+      alert('Import failed: '+err.message);
+    }finally{
+      e.target.value='';
+    }
+  });
+
+  // ----- Clear All -----
+  $('#clearAllBtn').addEventListener('click', async ()=>{
+    if(!confirm('Erase all stored data (files + notes)?')) return;
+    const t=db.transaction(['files','notes','hours','tags'],'readwrite');
+    t.objectStore('files').clear();
+    t.objectStore('notes').clear();
+    t.objectStore('hours').clear();
+    t.objectStore('tags').clear();
+    t.oncomplete = ()=> buildDays();
+  });
+
+  // ----- Counters & Search -----
+  async function updateCounter(){
+    if(!ok){ counter.textContent='Storage disabled'; return; }
+    const files = await getAllFiles();
+    const total = files.reduce((s,f)=> s + (f.blob?.size||0), 0);
+    counter.textContent = `Files: ${files.length}, ~${fmtMB(total)}`;
+  }
+  setInterval(updateCounter, 2000);
+  $('#search').addEventListener('input', debounce(applySearch,150));
+
+  // ----- Init -----
+  (async function init(){
+    startDate.value = DEFAULT_START;
+    startDate.addEventListener('change', async ()=>{
+      state.start = startDate.value || DEFAULT_START;
+      await setMeta('start', state.start);
+      await buildDays();
+    });
+    try{ await openDB(); }catch(e){ console.warn('IDB unavailable', e); }
+    if(!ok){ $('#idbBanner').style.display='block'; }
+    const savedStart = await getMeta('start'); if(savedStart){ state.start=savedStart; startDate.value=savedStart; }
+    await buildDays();
+    updateCounter();
+  })();
+})();
+</script>
+</body>
+</html>
